@@ -1,25 +1,24 @@
-use std::io::Cursor as Cursor;
-use image::io::Reader as ImageReader;
-use rocket::form::Form;
+use rocket::fs::FileName;
+use rocket::data::ToByteUnit;
 
-#[derive(FromForm)]
-struct Task {
-    complete: bool,
-    description: String
-}
+use rocket::form::{Form, DataField, FromFormField};
+use rocket::http::{ContentType, CookieJar, Status};
 
 #[macro_use] extern crate rocket;
 
+struct File<'v>{
+    file_name: Option<&'v FileName>,
+    content_type: ContentType,
+    data: Vec<u8>
+}
+
 #[post("/", data = "<task>")]
-fn index(task: Form<Task>)-> &'static str {
+fn index(task: Form<File>)-> &'static str {
     // do computer vision
     let bounding_box:Vec<u8> = computerVision();
     
     // Get the necessary instructions
-    let instructions: str = getInstructions(&bounding_box);
-
-    // get centre of person and return
-    &instructions
+    getInstructions(bounding_box)
 }
 
 fn computerVision() -> Vec<u8> {
@@ -32,8 +31,22 @@ fn computerVision() -> Vec<u8> {
     // the centre of the screen.
 }
 
-fn getInstructions() -> &'static str {
+fn getInstructions(bounding_box: Vec<u8>) -> &'static str {
     "Test"
+}
+
+#[rocket::async_trait]
+impl<'v> FromFormField<'v> for File<'v> {
+    async fn from_data(field: DataField<'v, '_>) -> rocket::form::Result<'v, Self> {
+        let stream = field.data.open(u32::MAX.bytes());
+        let bytes = stream.into_bytes().await?;
+        Ok(File {
+            file_name: field.file_name,
+            content_type: field.content_type,
+            data: bytes.value,
+        })
+
+    }
 }
 
 #[launch]
