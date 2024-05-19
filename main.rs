@@ -1,17 +1,20 @@
 use rocket::form::{Form, DataField, FromFormField};
+use rocket::serde::Deserialize;
+use rocket_contrib::json::Json;
 //use rocket::http::{ContentType, CookieJar, Status};
 
 use std::fs::File;
 
 #[macro_use] extern crate rocket;
 
+#[derive(Deserialize)]
 struct Image {
-    image: File,
-    name: str
+    image: Bytes,
+    timestamp: String,
 }
 
 #[post("/", format = "multipart/form-data", data = "<image>")]
-fn index(image: 'File) -> String {
+fn index(image: Json<Image>) -> String {
     // perform computer vision
     let bounding_box:Vec<f32> = get_bounding_box(image);
     
