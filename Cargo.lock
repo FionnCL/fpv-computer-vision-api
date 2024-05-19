@@ -475,6 +475,7 @@ dependencies = [
  "image",
  "rocket",
  "round",
+ "vector2d",
 ]
 
 [[package]]
@@ -1195,6 +1196,12 @@ dependencies = [
  "version_check",
  "yansi",
 ]
+
+[[package]]
+name = "proc_vector2d"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42ecc0faae16de3ca772d9083ce96872ab6758767deb1efb46e954dfc1d98342"
 
 [[package]]
 name = "profiling"
@@ -1997,6 +2004,15 @@ name = "valuable"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
+
+[[package]]
+name = "vector2d"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0ec481eac35d50b7544c58613da9f823561612b0221e67bdf04823b4c6e1358"
+dependencies = [
+ "proc_vector2d",
+]
 
 [[package]]
 name = "version-compare"
