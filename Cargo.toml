@@ -10,7 +10,6 @@ rocket = "0.5.0"
 round = "0.1.2"
 vector2d = "2.2.0"
 serde = { version = "1.0", features = ["derive"] }
-object-detector-rust = "0.1"
 
 [dependencies.rocket_contrib]
 version = "0.4.11"
