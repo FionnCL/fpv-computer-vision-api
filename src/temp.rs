@@ -3,6 +3,8 @@ use rocket::serde::Deserialize;
 use rocket_contrib::json::Json;
 //use rocket::http::{ContentType, CookieJar, Status};
 
+use object_detector_rust::prelude::*;
+
 use std::fs::File;
 
 #[macro_use] extern crate rocket;
