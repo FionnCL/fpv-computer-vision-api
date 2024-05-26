@@ -10,6 +10,7 @@ rocket = "0.5.0"
 round = "0.1.2"
 vector2d = "2.2.0"
 serde = { version = "1.0", features = ["derive"] }
+imageproc = "0.25.0"
 
 [dependencies.rocket_contrib]
 version = "0.4.11"
