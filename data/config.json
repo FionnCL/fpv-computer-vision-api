@@ -1,0 +1,5 @@
+{
+    "model_path": "data/combatant-model.pt",
+    "img_size": 640,
+    "names": ["combatant"]
+}

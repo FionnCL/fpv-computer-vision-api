@@ -1,29 +1,22 @@
-use rocket::form::{Form, DataField, FromFormField};
-use rocket::serde::Deserialize;
-use rocket_contrib::json::Json;
-//use rocket::http::{ContentType, CookieJar, Status};
+use opencv::prelude::*;
+use opencv::imgcodecs;
 
-use std::fs::File;
+mod yolo;
 
 #[macro_use] extern crate rocket;
 
-#[derive(Deserialize)]
-struct Image {
-    image: Bytes,
-    timestamp: String,
-}
-
-#[post("/", format = "multipart/form-data", data = "<image>")]
-fn index(image: Json<Image>) -> String {
+#[post("/")]
+fn index() -> String {
     // perform computer vision
-    let bounding_box:Vec<f32> = get_bounding_box(image);
+    //let bounding_box:Vec<f32> = get_bounding_box(image);
     
     // Get the necessary instructions
     // get_instructions(bounding_box)
-    format!("{},{}", (0.5 - &bounding_box[0]), (0.5 - &bounding_box[1]))
+    //format!("{},{}", (0.5 - &bounding_box[0]), (0.5 - &bounding_box[1]))
+    String::from("lol")
 }
 
-fn get_bounding_box(coordinates: Image) -> Vec<f32> {
+fn get_bounding_box() -> Vec<f32> {
     // realistically what will happen here is one of two things:
     //  - use a locally trained CV model
     //  - make request for more instructions from remote CV model API.
@@ -38,12 +31,42 @@ fn get_bounding_box(coordinates: Image) -> Vec<f32> {
     vec![0.451512, 0.124531, 0.314123, 0.532123]
 }
 
-fn get_instructions(bounding_box: Vec<f32>) -> () {
+fn get_instructions(_bounding_box: Vec<f32>) -> () {
     // Return value should be 2 floats denoting how much to move
     // in the x and y directions.
 }
 
 #[launch]
 fn rocket() -> _ {
+    let mut model = match yolo::load_model() {
+        Ok(model) => model,
+        Err(e) => {
+            println!("Error: {}", e);
+            std::process::exit(0);
+        }
+    };
+
+    let img_path = "data/test-image.jpg";
+    let img = imgcodecs::imread(img_path, imgcodecs::IMREAD_COLOR);
+    if img.expect("REASON").size().unwrap().width > 0 {
+        println!("Image loaded successfully.");
+    } else {
+        println!("Failed to load image.");
+        std::process::exit(0);
+    }
+
+    let detections = yolo::detect(&mut model, &img, 0.5, 0.5);
+    if detections.is_err() {
+        println!("Failed to detect, {:?}", detections.err().unwrap());
+        std::process::exit(0);
+    }
+
+    let detections = detections.unwrap();
+    println!("{:?}", detections);
+    yolo::draw_predictions(&mut img, &detections, &model.model_config);
+
+    let params: opencv::core::Vector<i32> = opencv::core::Vector::default();
+    opencv::imgcodecs::imwrite("result.jpg", &img, &params).unwrap();
+
     rocket::build().mount("/", routes![index])
 }
