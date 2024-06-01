@@ -47,15 +47,21 @@ fn rocket() -> _ {
     };
 
     let img_path = "data/test-image.jpg";
-    let img = imgcodecs::imread(img_path, imgcodecs::IMREAD_COLOR);
-    if img.expect("REASON").size().unwrap().width > 0 {
+    let mut img = match imgcodecs::imread(img_path, imgcodecs::IMREAD_COLOR) {
+        Ok(img) => img,
+        Err(e) => {
+            println!("Error: {}", e);
+            std::process::exit(0);
+        }
+    };
+    if img.size().unwrap().width > 0 {
         println!("Image loaded successfully.");
     } else {
         println!("Failed to load image.");
         std::process::exit(0);
     }
 
-    let detections = yolo::detect(&mut model, &img.unwrap(), 0.5, 0.5);
+    let detections = yolo::detect(&mut model, &img, 0.5, 0.5);
     if detections.is_err() {
         println!("Failed to detect, {:?}", detections.err().unwrap());
         std::process::exit(0);
@@ -66,7 +72,7 @@ fn rocket() -> _ {
     yolo::draw_predictions(&mut img, &detections, &model.model_config);
 
     let params: opencv::core::Vector<i32> = opencv::core::Vector::default();
-    opencv::imgcodecs::imwrite("result.jpg", &img.unwrap(), &params).unwrap();
+    opencv::imgcodecs::imwrite("result.jpg", &img, &params).unwrap();
 
     rocket::build().mount("/", routes![index])
 }
