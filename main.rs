@@ -38,6 +38,7 @@ fn get_instructions(_bounding_box: Vec<f32>) -> () {
 
 #[launch]
 fn rocket() -> _ {
+    println!("Loading model...");
     let mut model = match yolo::load_model() {
         Ok(model) => model,
         Err(e) => {
@@ -46,6 +47,7 @@ fn rocket() -> _ {
         }
     };
 
+    println!("Reading test image...");
     let img_path = "data/test-image.jpg";
     let mut img = match imgcodecs::imread(img_path, imgcodecs::IMREAD_COLOR) {
         Ok(img) => img,
