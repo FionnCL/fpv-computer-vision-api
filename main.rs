@@ -55,7 +55,7 @@ fn rocket() -> _ {
         std::process::exit(0);
     }
 
-    let detections = yolo::detect(&mut model, &img, 0.5, 0.5);
+    let detections = yolo::detect(&mut model, &img.unwrap(), 0.5, 0.5);
     if detections.is_err() {
         println!("Failed to detect, {:?}", detections.err().unwrap());
         std::process::exit(0);
@@ -66,7 +66,7 @@ fn rocket() -> _ {
     yolo::draw_predictions(&mut img, &detections, &model.model_config);
 
     let params: opencv::core::Vector<i32> = opencv::core::Vector::default();
-    opencv::imgcodecs::imwrite("result.jpg", &img, &params).unwrap();
+    opencv::imgcodecs::imwrite("result.jpg", &img.unwrap(), &params).unwrap();
 
     rocket::build().mount("/", routes![index])
 }
