@@ -1,5 +1,5 @@
 {
-    "model_path": "data/combatant-model.pt",
+    "model_path": "data/combatant-model.onnx",
     "img_size": 640,
     "names": ["combatant"]
 }
