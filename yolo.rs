@@ -46,7 +46,7 @@ pub fn load_model() -> Result<Model, Box<dyn Error>> {
 
     let mut model = match model {
         Ok(model) => model,
-        Err(_) => {println!("Invalid ONNX model."); std::process::exit(0)}
+        Err(e) => {println!("Error: {}", e); println!("Invalid ONNX model."); std::process::exit(0)}
     };
     model.set_preferable_backend(dnn::DNN_BACKEND_OPENCV)?;
 
@@ -66,7 +66,7 @@ fn load_model_from_config() -> Result<ModelConfig, Box<dyn Error>>{
     let model_config : std::result::Result<ModelConfig, serde_json::Error> = serde_json::from_reader(reader);
     let model_config = match model_config {
         Ok(model_config) => model_config,
-        Err(_) => {println!("Invalid config json."); std::process::exit(0)}
+        Err(e) => { println!("Error: {}", e); println!("Invalid config json."); std::process::exit(0)}
     };
 
     if !std::path::Path::new(&model_config.model_path).exists() {
