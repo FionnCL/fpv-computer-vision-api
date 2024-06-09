@@ -69,7 +69,13 @@ fn rocket() -> _ {
         std::process::exit(0);
     }
 
-    let detections = detections.unwrap();
+    let detections = match detections.unwrap() {
+        Some(detections) => detections,
+        Err(e) => { 
+            println!("Error: {}", e);
+            std::process::exit(0);
+        }
+    };
     println!("{:?}", detections);
     yolo::draw_predictions(&mut img, &detections, &model.model_config);
 

@@ -127,6 +127,7 @@ fn post_process(outs: &Vector<Mat>, mat_info: &MatInfo, conf_thresh: f32, nms_th
     let x_scale = mat_info.width / mat_info.scaled_size;
     let y_scale = mat_info.height / mat_info.scaled_size;
 
+
     // Iterate over all detections/anchors and get the maximum class confidence score and its index
     // To understand it better, I iterate over all anchors using the for loop.
     // In practice, it's recommended to use the function `opencv::core::min_max_loc()` to get the maximum score and its index. easy to use.
