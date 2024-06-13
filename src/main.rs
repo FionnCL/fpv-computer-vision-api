@@ -43,7 +43,7 @@ fn detect(file: Form<TempFile<'_>>) -> String {
 // and returns an array of detected objects,
 // their bounding boxes and segmentation masks
 // Returns Array of objects in format [(x1,y1,x2,y2,object_type,probability,mask),..]
-fn detect_objects_on_image(buf: Vec<u8>) -> Vec<(f32,f32,f32,f32,&'static str,f32,Vec<Vec<u8>>)> {
+fn detect_objects_on_image(buf: Vec<u8>) -> Vec<(f32,f32,f32,f32,&'static str,f32)> {
     let (input,img_width,img_height) = prepare_input(buf);
     let output = run_model(input);
     return process_output(output, img_width, img_height);
@@ -72,15 +72,13 @@ fn prepare_input(buf: Vec<u8>) -> (Array<f32,IxDyn>, u32, u32) {
 // Function used to pass provided input tensor to
 // YOLOv8 neural network and return result
 // Returns raw outputs of YOLOv8 network: 1 - detected objects, 2 - segmentation masks
-fn run_model(input:Array<f32,IxDyn>) -> (Array<f32,IxDyn>,Array<f32,IxDyn>) {
+fn run_model(input:Array<f32,IxDyn>) -> Array<f32,IxDyn> {
     let env = Arc::new(Environment::builder().with_name("YOLOv8").build().unwrap());
     let model = SessionBuilder::new(&env).unwrap().with_model_from_file("combatant-model.onnx").unwrap();
     let input_as_values = &input.as_standard_layout();
     let model_inputs = vec![Value::from_array(model.allocator(), input_as_values).unwrap()];
     let outputs = model.run(model_inputs).unwrap();
-    let output0 = outputs.get(0).unwrap().try_extract::<f32>().unwrap().view().t().into_owned();
-    let output1 = outputs.get(1).unwrap().try_extract::<f32>().unwrap().view().t().into_owned();
-    (output0, output1)
+    outputs.get(0).unwrap().try_extract::<f32>().unwrap().view().t().into_owned()
 }
 
 // Function used to convert RAW output from YOLOv8 to an array
@@ -88,13 +86,8 @@ fn run_model(input:Array<f32,IxDyn>) -> (Array<f32,IxDyn>,Array<f32,IxDyn>) {
 // this object, the type of object, the probability and the segmentation mask
 // as a 2d array of pixel colors
 // Returns array of detected objects in a format [(x1,y1,x2,y2,object_type,probability,mask),..]
-fn process_output(outputs:(Array<f32,IxDyn>,Array<f32,IxDyn>),img_width: u32, img_height: u32) -> Vec<(f32,f32,f32,f32,&'static str, f32,Vec<Vec<u8>>)> {
-    let (output0, output1) = outputs;
+fn process_output(output0:Array<f32,IxDyn>,img_width: u32, img_height: u32) -> Vec<(f32,f32,f32,f32,&'static str, f32)> {
     let boxes_output = output0.slice(s![..,0..84,0]).to_owned();
-    let masks_output:Array2<f32> = output1.slice(s![..,..,..,0]).to_owned()
-        .into_shape((160*160,32)).unwrap().permuted_axes([1,0]).to_owned();
-    let masks_output2:Array2<f32> = output0.slice(s![..,84..116,0]).to_owned();
-    let masks = masks_output2.dot(&masks_output).into_shape((8400, 160, 160)).unwrap().to_owned();
     let mut boxes = Vec::new();
     for (index,row) in boxes_output.axis_iter(Axis(0)).enumerate() {
         let row:Vec<_> = row.iter().map(|x| *x).collect();
@@ -104,7 +97,6 @@ fn process_output(outputs:(Array<f32,IxDyn>,Array<f32,IxDyn>),img_width: u32, im
         if prob < 0.5 {
             continue
         }
-        let mask:Array2<f32>= masks.slice(s![index, .., ..]).to_owned();
         let label = YOLO_CLASSES[class_id];
         let xc = row[0]/640.0*(img_width as f32);
         let yc = row[1]/640.0*(img_height as f32);
@@ -114,7 +106,7 @@ fn process_output(outputs:(Array<f32,IxDyn>,Array<f32,IxDyn>),img_width: u32, im
         let x2 = xc + w/2.0;
         let y1 = yc - h/2.0;
         let y2 = yc + h/2.0;
-        boxes.push((x1,y1,x2,y2,label,prob,process_mask(mask,(x1,y1,x2,y2),img_width,img_height)));
+        boxes.push((x1,y1,x2,y2,label,prob));
     }
 
     boxes.sort_by(|box1,box2| box2.5.total_cmp(&box1.5));
@@ -160,15 +152,15 @@ fn process_mask(mask:Array2<f32>,rect:(f32,f32,f32,f32),img_width:u32, img_heigh
 // Function calculates "Intersection-over-union" coefficient for specified two boxes
 // https://pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/.
 // Returns Intersection over union ratio as a float number
-fn iou(box1: &(f32, f32, f32, f32, &'static str, f32, Vec<Vec<u8>>), box2: &(f32, f32, f32, f32, &'static str, f32, Vec<Vec<u8>>)) -> f32 {
+fn iou(box1: &(f32, f32, f32, f32, &'static str, f32), box2: &(f32, f32, f32, f32, &'static str, f32)) -> f32 {
     return intersection(box1, box2) / union(box1, box2);
 }
 
 // Function calculates union area of two boxes
 // Returns Area of the boxes union as a float number
-fn union(box1: &(f32, f32, f32, f32, &'static str, f32, Vec<Vec<u8>>), box2: &(f32, f32, f32, f32, &'static str, f32, Vec<Vec<u8>>)) -> f32 {
-    let (box1_x1,box1_y1,box1_x2,box1_y2,_,_,_) = *box1;
-    let (box2_x1,box2_y1,box2_x2,box2_y2,_,_,_) = *box2;
+fn union(box1: &(f32, f32, f32, f32, &'static str, f32), box2: &(f32, f32, f32, f32, &'static str, f32)) -> f32 {
+    let (box1_x1,box1_y1,box1_x2,box1_y2,_,_) = *box1;
+    let (box2_x1,box2_y1,box2_x2,box2_y2,_,_) = *box2;
     let box1_area = (box1_x2-box1_x1)*(box1_y2-box1_y1);
     let box2_area = (box2_x2-box2_x1)*(box2_y2-box2_y1);
     return box1_area + box2_area - intersection(box1, box2);
@@ -176,9 +168,9 @@ fn union(box1: &(f32, f32, f32, f32, &'static str, f32, Vec<Vec<u8>>), box2: &(f
 
 // Function calculates intersection area of two boxes
 // Returns Area of intersection of the boxes as a float number
-fn intersection(box1: &(f32, f32, f32, f32, &'static str, f32, Vec<Vec<u8>>), box2: &(f32, f32, f32, f32, &'static str, f32, Vec<Vec<u8>>)) -> f32 {
-    let (box1_x1,box1_y1,box1_x2,box1_y2,_,_,_) = *box1;
-    let (box2_x1,box2_y1,box2_x2,box2_y2,_,_,_) = *box2;
+fn intersection(box1: &(f32, f32, f32, f32, &'static str, f32), box2: &(f32, f32, f32, f32, &'static str, f32)) -> f32 {
+    let (box1_x1,box1_y1,box1_x2,box1_y2,_,_) = *box1;
+    let (box2_x1,box2_y1,box2_x2,box2_y2,_,_) = *box2;
     let x1 = box1_x1.max(box2_x1);
     let y1 = box1_y1.max(box2_y1);
     let x2 = box1_x2.min(box2_x2);
