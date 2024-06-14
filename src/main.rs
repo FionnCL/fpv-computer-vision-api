@@ -87,9 +87,9 @@ fn run_model(input:Array<f32,IxDyn>) -> Array<f32,IxDyn> {
 // as a 2d array of pixel colors
 // Returns array of detected objects in a format [(x1,y1,x2,y2,object_type,probability,mask),..]
 fn process_output(output0:Array<f32,IxDyn>,img_width: u32, img_height: u32) -> Vec<(f32,f32,f32,f32,&'static str, f32)> {
-    let boxes_output = output0.slice(s![..,0..84,0]).to_owned();
+    let boxes_output = output0.slice(s![..,0..5,0]).to_owned();
     let mut boxes = Vec::new();
-    for (index,row) in boxes_output.axis_iter(Axis(0)).enumerate() {
+    for (_index,row) in boxes_output.axis_iter(Axis(0)).enumerate() {
         let row:Vec<_> = row.iter().map(|x| *x).collect();
         let (class_id, prob) = row.iter().skip(4).enumerate()
             .map(|(index,value)| (index,*value))

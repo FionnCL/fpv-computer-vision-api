@@ -29,7 +29,17 @@
                method:"post",
                body:data
            });
-           const boxes = await response.json();
+        const boxes = await response.json();
+        console.log(boxes);
+        boxes.forEach(([x1,y1,x2,y2,label,_,mask]) => {
+            console.log("(", x1, ",",  y1, ") : (", x2, ",", y2, ")");
+        });
+
+        console.log(boxes);
+        boxes.forEach(([x1,y1,x2,y2,label,_,mask]) => {
+            console.log("(", x1, ",",  y1, ") : (", x2, ",", y2, ")");
+        });
+
            draw_image_and_boxes(event.target.files[0],boxes);
        })
 
