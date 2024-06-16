@@ -4,17 +4,54 @@
         <meta charset="UTF-8">
         <title>FPV Drone</title>
         <style>
-canvas {
-    display:block;
-    border: 1px solid black;
-    margin-top:10px;
+body {
+    display: flex;
+    flex-direction: column;
+
+    background-color:#32302F;
 }
 
+.axis {
+    font-family: Arial, Helvetica, sans-serif;
+    
+    display: flex;
+    flex-direction: row;
+
+    color: white; 
+}
         </style>
     </head>
     <body>
-        <input id="uploadInput" type="file"/>
+        <input id="uploadInput" type="file" style="color: white;"/>
         <canvas></canvas>
+        <p class="axis">
+            Information such as target centre-coords, 
+            the magnitude of vector in relation to image,
+            and the relative X and Y Strengths necessary to steer the 
+            drone in the right direction.
+
+            The X and Y Strengths are left as the distance to each of their
+            respective axis', with (0,0) as the centre of the image.
+            These values will be left unchanged as there are many ways to execute 
+            the real world movement of the drone given the information displayed.
+        </p>
+        <div class="axis">
+            <p id="axis">No Coordinates Yet...</p>
+        </div>
+
+        <div class="axis">
+            <p>Magnitude:&nbsp;</p>
+            <p id="magnitude">undetected</p>
+        </div>
+
+        <div class="axis">
+            <p>X Strength:&nbsp;</p>
+            <p id="x-str">undetected</p>
+        </div>
+        <div class="axis">
+            <p>Y Strength:&nbsp;</p>
+            <p id="y-str">undetected</p>
+        </div>
         <script>
             const input = document.getElementById("uploadInput");
             /**
@@ -34,6 +71,7 @@ canvas {
 
                     draw_image_and_boxes(event.target.files[0],boxes);
                 })
+
 
             /**
                 * Displays the image, then draws rectangles around all detected objects,
@@ -63,12 +101,28 @@ canvas {
                             canvas.height
                         );
 
+                        let xdir = document
+                            .getElementById("axis")
+                            .innerHTML = "(" + Math.round(target[0]) + "," +
+                                Math.round(target[1]) + ")";
+                        let magnitude= document
+                            .getElementById("magnitude")
+                            .innerHTML = 
+                            Math.round(Math.sqrt(Math.pow(target[0] - canvas.width/2, 2) + 
+                                Math.pow(target[1] - canvas.height/2, 2)));
+                        let xstr = document
+                            .getElementById("x-str")
+                            .innerHTML = Math.round(target[0] - img.width/2);
+                        ;
+                        let ystr= document
+                            .getElementById("y-str")
+                            .innerHTML = Math.round((target[1] - img.height/2) * -1);
+                        
+
                         ctx.beginPath();
                         ctx.moveTo(canvas.width / 2, canvas.height / 2);
                         ctx.lineTo(target[0], target[1]);
                         ctx.stroke();
-                        ctx.arc(target[0], target[1], 4, 0, 2 * Math.PI);
-                        ctx.fillStyle = "red";
                         ctx.fill();
 
                         boxes.forEach(([x1,y1,x2,y2,label,prob,mask]) => {
