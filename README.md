@@ -24,7 +24,7 @@ This program is more of a proof of concept, as I am not going to be figuring out
 
 Displayed on the page(when an image is submitted), will be information that would theoretically be used to by a drone to steer into it's target. The program outputs the distance from the centre of the screen to the centre of the target in pixels. With the centre of the image being (0,0). This data was left so raw as how the drone would wish to interact with these figures would be undecided, however, leaving it this open to interpretation does make it so that it would be easy to imagine how a drone MIGHT interact with this information.
 
-The information was given as it is because I theorize that by giving the vector from the centre of the screen to the centre of the target in the vector's individual i and j components that are relative to the size of the image, you should be able to smoothly AND efficiently steer the drone(when targeting).
+I gave the vector's individual i and j components that relative to the size of the image, so that you should be able to smoothly and efficiently steer the drone(when targeting).
 
 ## Final Notes
 
