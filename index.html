@@ -1,77 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>YOLOv8 Object Detection</title>
-    <style>
-      canvas {
-          display:block;
-          border: 1px solid black;
-          margin-top:10px;
-      }
-    </style>
-</head>
-<body>
-    <input id="uploadInput" type="file"/>
-    <canvas></canvas>
-    <script>
-       const input = document.getElementById("uploadInput");
-       /**
-        * Runs when user uploads the file. Receives the image,
-        * sends it to the backend, then receives the
-        * array of detected objects and forwards them to the
-        * draw_image_and_boxes to display
-        */
-       input.addEventListener("change",async(event) => {
-           const data = new FormData();
-           data.append("image_file",event.target.files[0],"image_file");
-           const response = await fetch("/detect",{
-               method:"post",
-               body:data
-           });
-        const boxes = await response.json();
-        console.log(boxes);
-        boxes.forEach(([x1,y1,x2,y2,label,_,mask]) => {
-            console.log("(", x1, ",",  y1, ") : (", x2, ",", y2, ")");
-        });
+    <head>
+        <meta charset="UTF-8">
+        <title>FPV Drone</title>
+        <style>
+canvas {
+    display:block;
+    border: 1px solid black;
+    margin-top:10px;
+}
 
-        console.log(boxes);
-        boxes.forEach(([x1,y1,x2,y2,label,_,mask]) => {
-            console.log("(", x1, ",",  y1, ") : (", x2, ",", y2, ")");
-        });
+        </style>
+    </head>
+    <body>
+        <input id="uploadInput" type="file"/>
+        <canvas></canvas>
+        <script>
+            const input = document.getElementById("uploadInput");
+            /**
+                * Runs when user uploads the file. Receives the image,
+                * sends it to the backend, then receives the
+                * array of detected objects and forwards them to the
+                * draw_image_and_boxes to display
+                */
+                input.addEventListener("change",async(event) => {
+                    const data = new FormData();
+                    data.append("image_file",event.target.files[0],"image_file");
+                    const response = await fetch("/detect",{
+                        method:"post",
+                        body:data
+                    });
+                    const boxes = await response.json();
 
-           draw_image_and_boxes(event.target.files[0],boxes);
-       })
+                    draw_image_and_boxes(event.target.files[0],boxes);
+                })
 
-       /**
-        * Displays the image, then draws rectangles around all detected objects,
-        * the displays segmentation mask of each object
-        * @param file - the image file
-        * @param boxes - array of detected objects. Each object has format [x1,y1,x2,y2,label,probability,mask]
-        */
-       function draw_image_and_boxes(file,boxes) {
-          const img = new Image()
-          img.src = URL.createObjectURL(file);
-          img.onload = () => {
-              const canvas = document.querySelector("canvas");
-              canvas.width = img.width;
-              canvas.height = img.height;
-              const ctx = canvas.getContext("2d");
-              ctx.drawImage(img,0,0);
-              ctx.strokeStyle = "#00FF00";
-              ctx.lineWidth = 3;
-              ctx.font = "18px serif";
-              boxes.forEach(([x1,y1,x2,y2,label,_,mask]) => {
-                  ctx.fillStyle = "#00FF0077";
-                  ctx.strokeRect(x1,y1,x2-x1,y2-y1);
-                  ctx.fillStyle = "#00ff00";
-                  const width = ctx.measureText(label).width;
-                  ctx.fillRect(x1,y1,width+10,25);
-                  ctx.fillStyle = "#000000";
-                  ctx.fillText(label, x1, y1+18);
-              });
-          }
-      }
-    </script>
-</body>
+            /**
+                * Displays the image, then draws rectangles around all detected objects,
+                * the displays segmentation mask of each object
+                * @param file - the image file
+                * @param boxes - array of detected objects. Each object has format [x1,y1,x2,y2,label,probability,mask]
+                */
+                function draw_image_and_boxes(file,boxes) {
+                    const img = new Image()
+                    img.src = URL.createObjectURL(file);
+
+                    img.onload = () => {
+                        const canvas = document.querySelector("canvas");
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext("2d");
+
+                        
+                        ctx.drawImage(img,0,0);
+                        ctx.strokeStyle = "#00FF00";
+                        ctx.lineWidth = 3;
+                        ctx.font = "18px serif";
+
+                        let target = find_closest_box(
+                            boxes, 
+                            canvas.width, 
+                            canvas.height
+                        );
+
+                        ctx.beginPath();
+                        ctx.moveTo(canvas.width / 2, canvas.height / 2);
+                        ctx.lineTo(target[0], target[1]);
+                        ctx.stroke();
+                        ctx.arc(target[0], target[1], 4, 0, 2 * Math.PI);
+                        ctx.fillStyle = "red";
+                        ctx.fill();
+
+                        boxes.forEach(([x1,y1,x2,y2,label,prob,mask]) => {
+                            ctx.fillStyle = "#00FF0077";
+                            ctx.strokeRect(x1,y1,x2-x1,y2-y1);
+                            ctx.fillStyle = "#00ff00";
+                            const width = ctx
+                                .measureText(label + "[0.00]")
+                                .width;
+                            ctx.fillRect(x1,y1,width+10,25);
+                            ctx.fillStyle = "#000000";
+                            ctx.fillText(label + "[" + 
+                                parseFloat(prob)
+                                .toPrecision(2) + "]", x1, y1+18);
+                        });
+                        ctx.beginPath();
+                        ctx.arc(img.width/2, img.height/2, 4, 0, 2 * Math.PI);
+                        ctx.fillStyle = "red";
+                        ctx.fill();
+                    }
+                }
+
+            function get_centre_of_box(box) {
+                return [box[0] + (box[2] - box[0]) / 2, 
+                    box[1] + (box[3]- box[1]) / 2] ;
+            }
+
+            function get_box_distance_to_centre(box, centre_x, centre_y){
+                let centre = get_centre_of_box(box);
+                return Math.sqrt(Math.pow(centre[0] - centre_x, 2) + 
+                    Math.pow(centre[1] - centre_y, 2));
+            }
+
+            function find_closest_box(boxes, img_width, img_height){
+                let closest = img_width * img_height;
+                let closest_xy = [0,0]; 
+
+                boxes.forEach((box) => {
+                    let current_distance = 
+                        get_box_distance_to_centre(box, img_width / 2, img_height / 2)
+                    console.log("Distance to box: " + current_distance);
+                    if(Math.abs(current_distance) < closest) {
+                        closest = current_distance;
+                        closest_xy = get_centre_of_box(box);
+                    }
+                });
+
+                return closest_xy;
+            }
+
+        </script>
+    </body>
 </html>

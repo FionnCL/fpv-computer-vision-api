@@ -1,16 +1,13 @@
 use std::sync::Arc;
-use image::{GenericImage, GenericImageView, ImageFormat, Rgba};
+use image::{GenericImageView, ImageFormat};
 use image::imageops::FilterType;
-use ndarray::{Array, Array2, Axis, IxDyn, s};
+use ndarray::{Array, Axis, IxDyn, s};
 use ort::{Environment, SessionBuilder, Value};
 use rocket::{response::content,fs::TempFile,form::Form};
 use std::path::Path;
 
 #[macro_use] extern crate rocket;
 
-// Main function that defines
-// a web service endpoints a starts
-// the web service
 #[rocket::main]
 async fn main() {
     rocket::build()
@@ -19,18 +16,13 @@ async fn main() {
         .launch().await.unwrap();
 }
 
-// Site main page handler function.
-// Returns Content of index.html file
+// Website
 #[get("/")]
 fn index() -> content::RawHtml<String> {
     content::RawHtml(std::fs::read_to_string("index.html").unwrap())
 }
 
-// Handler of /detect POST endpoint
-// Receives uploaded file with a name "image_file", passes it
-// through YOLOv8 object detection network and returns and array
-// of bounding boxes and segmentation masks.
-// Returns a JSON array of objects in format [(x1,y1,x2,y2,object_type,probability,mask),..]
+// Read file and process
 #[post("/", data = "<file>")]
 fn detect(file: Form<TempFile<'_>>) -> String {
     let buf = std::fs::read(file.path().unwrap_or(Path::new(""))).unwrap_or(vec![]);
@@ -38,21 +30,12 @@ fn detect(file: Form<TempFile<'_>>) -> String {
     return serde_json::to_string(&boxes).unwrap_or_default()
 }
 
-// Function receives an image,
-// passes it through YOLOv8 neural network
-// and returns an array of detected objects,
-// their bounding boxes and segmentation masks
-// Returns Array of objects in format [(x1,y1,x2,y2,object_type,probability,mask),..]
 fn detect_objects_on_image(buf: Vec<u8>) -> Vec<(f32,f32,f32,f32,&'static str,f32)> {
     let (input,img_width,img_height) = prepare_input(buf);
     let output = run_model(input);
     return process_output(output, img_width, img_height);
 }
 
-// Function used to convert input image to tensor,
-// required as an input to YOLOv8 object detection
-// network.
-// Returns the input tensor, original image width and height
 fn prepare_input(buf: Vec<u8>) -> (Array<f32,IxDyn>, u32, u32) {
     let img = image::load_from_memory_with_format(&buf, ImageFormat::Jpeg).unwrap();
     let (img_width, img_height) = (img.width(), img.height());
@@ -69,9 +52,6 @@ fn prepare_input(buf: Vec<u8>) -> (Array<f32,IxDyn>, u32, u32) {
     return (input, img_width, img_height);
 }
 
-// Function used to pass provided input tensor to
-// YOLOv8 neural network and return result
-// Returns raw outputs of YOLOv8 network: 1 - detected objects, 2 - segmentation masks
 fn run_model(input:Array<f32,IxDyn>) -> Array<f32,IxDyn> {
     let env = Arc::new(Environment::builder().with_name("YOLOv8").build().unwrap());
     let model = SessionBuilder::new(&env).unwrap().with_model_from_file("combatant-model.onnx").unwrap();
@@ -81,11 +61,6 @@ fn run_model(input:Array<f32,IxDyn>) -> Array<f32,IxDyn> {
     outputs.get(0).unwrap().try_extract::<f32>().unwrap().view().t().into_owned()
 }
 
-// Function used to convert RAW output from YOLOv8 to an array
-// of detected objects. Each object contain the bounding box of
-// this object, the type of object, the probability and the segmentation mask
-// as a 2d array of pixel colors
-// Returns array of detected objects in a format [(x1,y1,x2,y2,object_type,probability,mask),..]
 fn process_output(output0:Array<f32,IxDyn>,img_width: u32, img_height: u32) -> Vec<(f32,f32,f32,f32,&'static str, f32)> {
     let boxes_output = output0.slice(s![..,0..5,0]).to_owned();
     let mut boxes = Vec::new();
@@ -118,46 +93,10 @@ fn process_output(output0:Array<f32,IxDyn>,img_width: u32, img_height: u32) -> V
     return result;
 }
 
-// Function transforms the segmentation mask for the object from raw
-// 160x160 YOLOv8 output to correct size and returns it as a two dimensional array
-fn process_mask(mask:Array2<f32>,rect:(f32,f32,f32,f32),img_width:u32, img_height:u32) -> Vec<Vec<u8>> {
-    let (x1,y1,x2,y2) = rect;
-    let mut mask_img = image::DynamicImage::new_rgb8(161,161);
-    let mut index = 0.0;
-    mask.for_each(|item| {
-        let color = if *item > 0.0 { Rgba::<u8>([255,255,255,1])  } else { Rgba::<u8>([0,0,0,1]) };
-        let y = f32::floor(index / 160.0);
-        let x = index - y * 160.0;
-        mask_img.put_pixel(x as u32, y as u32, color);
-        index += 1.0;
-    });
-    mask_img = mask_img.crop((x1 / img_width as f32 * 160.0).round() as u32,
-                             (y1 / img_height as f32 * 160.0).round() as u32,
-                             ((x2-x1) / img_width as f32 * 160.0).round() as u32,
-                             ((y2-y1) / img_height as f32 * 160.0).round() as u32
-    );
-    mask_img = mask_img.resize_exact((x2-x1) as u32,(y2-y1) as u32, FilterType::Nearest);
-    let mut result = vec![];
-    for y in 0..(y2-y1) as usize {
-        let mut row = vec![];
-        for x in 0..(x2-x1) as usize {
-            let color= mask_img.get_pixel(x as u32, y as u32);
-            row.push(*color.0.iter().nth(0).unwrap());
-        }
-        result.push(row);
-    }
-    return result;
-}
-
-// Function calculates "Intersection-over-union" coefficient for specified two boxes
-// https://pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/.
-// Returns Intersection over union ratio as a float number
 fn iou(box1: &(f32, f32, f32, f32, &'static str, f32), box2: &(f32, f32, f32, f32, &'static str, f32)) -> f32 {
     return intersection(box1, box2) / union(box1, box2);
 }
 
-// Function calculates union area of two boxes
-// Returns Area of the boxes union as a float number
 fn union(box1: &(f32, f32, f32, f32, &'static str, f32), box2: &(f32, f32, f32, f32, &'static str, f32)) -> f32 {
     let (box1_x1,box1_y1,box1_x2,box1_y2,_,_) = *box1;
     let (box2_x1,box2_y1,box2_x2,box2_y2,_,_) = *box2;
@@ -166,8 +105,6 @@ fn union(box1: &(f32, f32, f32, f32, &'static str, f32), box2: &(f32, f32, f32, 
     return box1_area + box2_area - intersection(box1, box2);
 }
 
-// Function calculates intersection area of two boxes
-// Returns Area of intersection of the boxes as a float number
 fn intersection(box1: &(f32, f32, f32, f32, &'static str, f32), box2: &(f32, f32, f32, f32, &'static str, f32)) -> f32 {
     let (box1_x1,box1_y1,box1_x2,box1_y2,_,_) = *box1;
     let (box2_x1,box2_y1,box2_x2,box2_y2,_,_) = *box2;
@@ -178,5 +115,4 @@ fn intersection(box1: &(f32, f32, f32, f32, &'static str, f32), box2: &(f32, f32
     return (x2-x1)*(y2-y1);
 }
 
-// Array of YOLOv8 class labels
 const YOLO_CLASSES:[&str;1] = ["combatant"];
