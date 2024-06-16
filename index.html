@@ -5,10 +5,22 @@
         <title>FPV Drone</title>
         <style>
 body {
-    display: flex;
-    flex-direction: column;
-
     background-color:#32302F;
+    height: 100%;
+
+    display: table-cell;
+    vertical-align: middle: 
+}
+
+html {
+    height: 100%;
+    display: table;
+    margin: auto;
+}
+
+canvas {
+    max-width: 1080px;
+    max-height: 720px;
 }
 
 .axis {
@@ -22,16 +34,19 @@ body {
         </style>
     </head>
     <body>
-        <input id="uploadInput" type="file" style="color: white;"/>
         <canvas></canvas>
+        <input id="uploadInput" type="file" style="color: white;"/>
         <p class="axis">
             Information such as target centre-coords, 
             the magnitude of vector in relation to image,
             and the relative X and Y Strengths necessary to steer the 
             drone in the right direction.
-
+        </p>
+        <p class="axis">
             The X and Y Strengths are left as the distance to each of their
             respective axis', with (0,0) as the centre of the image.
+        </p>
+        <p class="axis">
             These values will be left unchanged as there are many ways to execute 
             the real world movement of the drone given the information displayed.
         </p>
