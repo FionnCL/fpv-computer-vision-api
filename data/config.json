@@ -1,6 +1,0 @@
-{
-    "model_path": "data/combatant-model.onnx",
-    "class_names": ["combatant"],
-    "input_size": 20,
-    "img_size": 640
-}
